@@ -16,7 +16,7 @@ This project processes raw clinical BDF datasets to extract cross-frequency and 
 ## Visual
 ![PAC Histogram](images/parkinsons_PAC_plot.png)
 
-*Figure: Comparison of PAC distributions showing the decoupling of Beta-Gamma interactions upon Levodopa administration.*
+*Figure: Comparison of PAC distributions showing the decoupling of Beta-Gamma interactions upon Levodopa medication.*
 
 ## Getting Started
 1. Clone the repo: `git clone https://github.com/YOUR_USERNAME/parkinsons-eeg-classifier.git`
