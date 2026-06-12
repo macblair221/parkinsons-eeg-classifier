@@ -15,6 +15,7 @@ This project processes raw clinical BDF datasets to extract cross-frequency and 
 
 ## Visual
 ![PAC Histogram](images/parkinsons_PAC_plot.png)
+
 *Figure: Comparison of PAC distributions showing the decoupling of Beta-Gamma interactions upon Levodopa administration.*
 
 ## Getting Started
