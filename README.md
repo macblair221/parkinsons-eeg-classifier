@@ -14,7 +14,7 @@ This project processes raw clinical BDF datasets to extract cross-frequency and 
 - **Reproducibility:** BIDS-compliant ingestion ensures scalability across datasets.
 
 ## Visual
-![PAC Histogram](path/to/your/pac_histogram.png)
+![PAC Histogram](images/parkinsons_PAC_plot.png)
 *Figure: Comparison of PAC distributions showing the decoupling of Beta-Gamma interactions upon Levodopa administration.*
 
 ## Getting Started
