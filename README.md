@@ -22,3 +22,7 @@ This project processes raw clinical BDF datasets to extract cross-frequency and 
 1. Clone the repo: `git clone https://github.com/YOUR_USERNAME/parkinsons-eeg-classifier.git`
 2. Install requirements: `pip install -r requirements.txt`
 3. Run the pipeline: `python src/model.py`
+
+
+### Citations
+Swann, N.C., de Hemptinne, C., Aron, A.R., Ostrem, J.L., Knight, R.T. and Starr, P.A. (2015), Elevated synchrony in Parkinson disease detected with electroencephalography. Ann Neurol., 78: 742-750. https://doi.org/10.1002/ana.24507
