@@ -21,7 +21,7 @@ This project processes raw clinical BDF datasets to extract cross-frequency and 
 ## Getting Started
 1. Clone the repo: `git clone https://github.com/macblair221/parkinsons-eeg-classifier.git`
 2. Install requirements: `pip install -r requirements.txt`
-3. Run the pipeline: `python src/model.py`
+3. Run the pipeline: `python src/data_loader.py`
 
 
 ### Citations
