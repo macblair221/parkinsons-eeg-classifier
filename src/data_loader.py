@@ -76,7 +76,7 @@ if __name__ == "__main__":
         if subject_data['off'] is not None:
             epochs_off = clean_and_epoch_data(subject_data['off'])
             if epochs_off:
-                df_off = extract_neural_features(epochs_off, label_state=0)
+                df_off = extract_neural_features(epochs_off, label_state=0, subject_id=sub)
                 all_features.append(df_off)
                 print(f"Extracted features for {len(df_off)} OFF epochs.")
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         if subject_data['on'] is not None:
             epochs_on = clean_and_epoch_data(subject_data['on'])
             if epochs_on:
-                df_on = extract_neural_features(epochs_on, label_state=1)
+                df_on = extract_neural_features(epochs_on, label_state=1, subject_id=sub)
                 all_features.append(df_on)
                 print(f"Extracted features for {len(df_on)} ON epochs.")
 
