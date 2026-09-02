@@ -1,5 +1,6 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import numpy as np
+from sklearn.model_selection import train_test_split, LeaveOneGroupOut
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
 
@@ -52,3 +53,31 @@ def train_evaluation_pipeline(df):
     print(importances.to_string(index=False))
 
     return rf_model
+
+
+def loso_evaluation(df):
+    '''
+    Leave-One-Subject-Out: train on all subjects but one, test on the held-out
+    subject. No subject appears in both train and test, so the score reflects
+    decoding of medication state rather than recognition of individuals.
+    '''
+    FEATURES = ['plv_beta_c3_c4', 'pac_c3', 'pac_c4', 'theta_power_c3',
+                'theta_power_c4', 'beta_power_c3', 'beta_power_c4']
+    X, y, groups = df[FEATURES], df['medication_state'], df['subject_id']
+
+    aucs = []
+    for train_idx, test_idx in LeaveOneGroupOut().split(X, y, groups):
+        held_out = groups.iloc[test_idx].iloc[0]
+        if y.iloc[test_idx].nunique() < 2:
+            print(f"sub-{held_out}: skipped (only one class present)")
+            continue
+        rf = RandomForestClassifier(n_estimators=100, random_state=42)
+        rf.fit(X.iloc[train_idx], y.iloc[train_idx])
+        prob = rf.predict_proba(X.iloc[test_idx])[:, 1]
+        auc = roc_auc_score(y.iloc[test_idx], prob)
+        aucs.append(auc)
+        print(f"sub-{held_out}: ROC-AUC {auc:.3f}")
+
+    print(f"\nLOSO mean ROC-AUC: {np.mean(aucs):.3f} +/- {np.std(aucs):.3f} "
+          f"over {len(aucs)} subjects")
+    return aucs
