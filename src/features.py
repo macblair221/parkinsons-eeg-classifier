@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import hilbert
 
-def extract_neural_features(epochs, label_state):
+def extract_neural_features(epochs, label_state, subject_id=None):
 
     if epochs is None:
         return None
@@ -57,7 +57,8 @@ def extract_neural_features(epochs, label_state):
             'theta_power_c4': theta_power_c4,
             'beta_power_c3' : beta_power_c3,
             'beta_power_c4' : beta_power_c4,
-            'medication_state': label_state
+            'medication_state': label_state,
+            'subject_id': subject_id
 
         })
 
