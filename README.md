@@ -26,3 +26,5 @@ This project processes raw clinical BDF datasets to extract cross-frequency and 
 
 ### Citations
 Swann, N.C., de Hemptinne, C., Aron, A.R., Ostrem, J.L., Knight, R.T. and Starr, P.A. (2015), Elevated synchrony in Parkinson disease detected with electroencephalography. Ann Neurol., 78: 742-750. https://doi.org/10.1002/ana.24507
+
+Alexander P. Rockhill, Nicko Jackson, Jobi George, Adam Aron, and Nicole C. Swann (2020). UC San Diego Resting State EEG Data from Patients with Parkinson's Disease. OpenNeuro. [Dataset] doi: 10.18112/openneuro.ds002778.v1.0.1
