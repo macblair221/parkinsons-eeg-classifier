@@ -2,3 +2,9 @@ data/
 __pycache__/
 *.ipynb_checkpoints/
 .env
+features.csv
+data/raw/
+__pycache__/
+features.csv
+data/raw/
+__pycache__/

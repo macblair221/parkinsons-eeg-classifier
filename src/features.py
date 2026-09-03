@@ -3,64 +3,64 @@ import numpy as np
 import pandas as pd
 from scipy.signal import hilbert
 
-def extract_neural_features(epochs, label_state, subject_id=None):
+# Sensorimotor strip and immediate neighbours, up from just C3/C4.
+# Intersected with what the recording actually contains so a missing
+# electrode degrades gracefully instead of crashing.
+SENSORIMOTOR = ['C3', 'C1', 'Cz', 'C2', 'C4', 'FC1', 'FC2', 'CP1', 'CP2']
 
+BANDS = {
+    'theta':    (4.0, 8.0),
+    'alpha':    (8.0, 13.0),
+    'lowbeta':  (13.0, 20.0),
+    'highbeta': (20.0, 30.0),
+    'gamma':    (30.0, 50.0),
+}
+
+
+def extract_neural_features(epochs, label_state, subject_id=None):
     if epochs is None:
         return None
-    
-    # Filter the distinct bands
-    # We stop Gamma at 50Hz to dodge 60Hz US power-line noise
-    epochs_theta = epochs.copy().filter(l_freq=4.0, h_freq=6.0, verbose=False)
-    epochs_beta = epochs.copy().filter(l_freq=13.0, h_freq=30.0, verbose=False)
-    epochs_gamma = epochs.copy().filter(l_freq=30.0, h_freq=50.0, verbose=False)
 
-    # Extract C3 and C4 arrays
-    theta_data = epochs_theta.copy().pick(['C3', 'C4']).get_data()  
-    beta_data = epochs_beta.copy().pick(['C3', 'C4']).get_data()  
-    gamma_data = epochs_gamma.copy().pick(['C3', 'C4']).get_data()  
+    wanted = [ch for ch in SENSORIMOTOR if ch in epochs.ch_names]
+    picked = epochs.copy().pick(wanted)
+    ch_names = picked.ch_names          # authoritative order after picking
+
+    # Filter once per band; each array is (n_epochs, n_channels, n_times)
+    band_data = {
+        name: picked.copy().filter(lo, hi, verbose=False).get_data()
+        for name, (lo, hi) in BANDS.items()
+    }
 
     features_list = []
 
-    # Iterate through every 2-second epoch
-    for i in range(len(beta_data)):
-        # Isolate channels
-        beta_c3, beta_c4 = beta_data[i][0], beta_data[i][1]
-        gamma_c3, gamma_c4 = gamma_data[i][0], gamma_data[i][1]
-        theta_c3, theta_c4 = theta_data[i][0], theta_data[i][1]
+    for i in range(band_data['lowbeta'].shape[0]):
+        row = {}
 
-        # Phase Locking Value (Beta C3-C4)
-        phase_beta_c3 = np.angle(hilbert(beta_c3))
-        phase_beta_c4 = np.angle(hilbert(beta_c4))
-        plv_beta = np.abs(np.mean(np.exp(1j * (phase_beta_c3 - phase_beta_c4))))
+        # Relative power: each band's share of that channel's total power
+        # across the analysed bands, so per-session gain cancels.
+        powers = {name: np.var(band_data[name][i], axis=1) for name in BANDS}
+        total = sum(powers.values())
+        for name in BANDS:
+            rel = powers[name] / total
+            for idx, ch in enumerate(ch_names):
+                row[f'{name}_power_{ch}'] = rel[idx]
 
-        # Phase Amplitude Coupling (Beta Phase -> Gamma Amplitude)
-        amp_gamma_c3 = np.abs(hilbert(gamma_c3))
-        amp_gamma_c4 = np.abs(hilbert(gamma_c4))
+        # Phase-locking across the motor strip, in both beta sub-bands
+        for band in ('lowbeta', 'highbeta'):
+            for a, b in [('C3', 'C4'), ('C3', 'Cz'), ('Cz', 'C4')]:
+                if a in ch_names and b in ch_names:
+                    pa = np.angle(hilbert(band_data[band][i][ch_names.index(a)]))
+                    pb = np.angle(hilbert(band_data[band][i][ch_names.index(b)]))
+                    row[f'plv_{band}_{a}_{b}'] = np.abs(np.mean(np.exp(1j * (pa - pb))))
 
-        # Simplified Canolty's Modulation Index (log transformed)
-        pac_c3 = np.log10(np.abs(np.mean(amp_gamma_c3 * np.exp(1j * phase_beta_c3))))
-        pac_c4 = np.log10(np.abs(np.mean(amp_gamma_c4 * np.exp(1j * phase_beta_c4))))
+        # Amplitude-normalised PAC: high-beta phase -> gamma amplitude
+        for idx, ch in enumerate(ch_names):
+            phase = np.angle(hilbert(band_data['highbeta'][i][idx]))
+            amp = np.abs(hilbert(band_data['gamma'][i][idx]))
+            row[f'pac_{ch}'] = np.abs(np.mean(amp * np.exp(1j * phase))) / np.mean(amp)
 
+        row['medication_state'] = label_state
+        row['subject_id'] = subject_id
+        features_list.append(row)
 
-        # LOG Power (Theta and Beta)
-        theta_power_c3 = np.log10(np.var(theta_c3))
-        theta_power_c4 = np.log10(np.var(theta_c4))
-        beta_power_c3 = np.log10(np.var(beta_c3))
-        beta_power_c4 = np.log10(np.var(beta_c4))
-
-        # Append to dataset
-        features_list.append({
-            'plv_beta_c3_c4': plv_beta,
-            'pac_c3': pac_c3,
-            'pac_c4': pac_c4,
-            'theta_power_c3': theta_power_c3,
-            'theta_power_c4': theta_power_c4,
-            'beta_power_c3' : beta_power_c3,
-            'beta_power_c4' : beta_power_c4,
-            'medication_state': label_state,
-            'subject_id': subject_id
-
-        })
-
-    return pd.DataFrame(features_list) # Convert the list of dictionaries into a Pandas DataFrame
-
+    return pd.DataFrame(features_list)

@@ -5,7 +5,7 @@ from mne_bids import BIDSPath, read_raw_bids, get_entity_vals
 
 from preprocessing import clean_and_epoch_data
 from features import extract_neural_features
-from model import train_evaluation_pipeline
+from model import train_evaluation_pipeline, loso_evaluation, shuffled_label_control
 import pandas as pd
 
 
@@ -90,9 +90,16 @@ if __name__ == "__main__":
 
     # Combine everything into one dataset
     final_dataset = pd.concat(all_features, ignore_index=True)
+    final_dataset.to_csv('features.csv', index=False)
     print(final_dataset.head())
     print(f"shape: {final_dataset.shape}")
 
     # Run the ML pipeline
     trained_model = train_evaluation_pipeline(final_dataset)
+
+    # Same features, leakage-free split — the honest number
+    loso_evaluation(final_dataset)
+
+    # Negative control: same pipeline, labels destroyed
+    shuffled_label_control(final_dataset)
 

@@ -1,8 +1,12 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, LeaveOneGroupOut
+from sklearn.utils import shuffle
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
+
+def feature_columns(df):
+    return [c for c in df.columns if c not in ('medication_state', 'subject_id')]
 
 
 def train_evaluation_pipeline(df):
@@ -12,9 +16,7 @@ def train_evaluation_pipeline(df):
     '''
     print("\n===== Initializing ML Pipeline ======")
 
-    X = df[['plv_beta_c3_c4', 'pac_c3','pac_c4','theta_power_c3',
-            'theta_power_c4','beta_power_c3',
-            'beta_power_c4']]
+    X = df[feature_columns(df)]
     
     y = df['medication_state']
 
@@ -25,7 +27,7 @@ def train_evaluation_pipeline(df):
     print(f"Training on {len(X_train)} epochs, Testing on {len(X_test)} epochs.")
 
     # Initialize and train RF
-    rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+    rf_model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
     rf_model.fit(X_train, y_train)
 
 
@@ -55,14 +57,13 @@ def train_evaluation_pipeline(df):
     return rf_model
 
 
-def loso_evaluation(df):
+def loso_evaluation(df, verbose = True):
     '''
     Leave-One-Subject-Out: train on all subjects but one, test on the held-out
     subject. No subject appears in both train and test, so the score reflects
     decoding of medication state rather than recognition of individuals.
     '''
-    FEATURES = ['plv_beta_c3_c4', 'pac_c3', 'pac_c4', 'theta_power_c3',
-                'theta_power_c4', 'beta_power_c3', 'beta_power_c4']
+    FEATURES = feature_columns(df)
     X, y, groups = df[FEATURES], df['medication_state'], df['subject_id']
 
     aucs = []
@@ -71,13 +72,46 @@ def loso_evaluation(df):
         if y.iloc[test_idx].nunique() < 2:
             print(f"sub-{held_out}: skipped (only one class present)")
             continue
-        rf = RandomForestClassifier(n_estimators=100, random_state=42)
+        rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
         rf.fit(X.iloc[train_idx], y.iloc[train_idx])
         prob = rf.predict_proba(X.iloc[test_idx])[:, 1]
         auc = roc_auc_score(y.iloc[test_idx], prob)
         aucs.append(auc)
-        print(f"sub-{held_out}: ROC-AUC {auc:.3f}")
+        if verbose:
+            print(f"sub-{held_out}: ROC-AUC {auc:.3f}")
 
-    print(f"\nLOSO mean ROC-AUC: {np.mean(aucs):.3f} +/- {np.std(aucs):.3f} "
-          f"over {len(aucs)} subjects")
+    if verbose:
+        print(f"\nLOSO mean ROC-AUC: {np.mean(aucs):.3f} +/- {np.std(aucs):.3f} "
+              f"over {len(aucs)} subjects")
     return aucs
+
+def shuffled_label_control(df, n_repeats=5, seed=0, observed=None):
+    '''
+    Negative control: shuffle medication_state WITHIN each subject, then run the
+    same LOSO evaluation. Shuffling within-subject preserves every property of
+    the data except the link between features and label, so any score above
+    chance here is produced by the evaluation itself rather than by neural signal.
+    A correct pipeline should land at ~0.50.
+    '''
+    rng = np.random.default_rng(seed)
+    means = []
+
+    for rep in range(n_repeats):
+        shuffled = df.copy()
+        # Permute labels inside each subject, so per-subject class balance is preserved
+        shuffled['medication_state'] = (
+            shuffled.groupby('subject_id')['medication_state']
+                    .transform(lambda s: rng.permutation(s.values))
+        )
+        aucs = loso_evaluation(shuffled, verbose=False)
+        means.append(np.mean(aucs))
+
+    print(f"\n=== CONTROL: shuffled-label LOSO mean {np.mean(means):.3f} "
+        f"+/- {np.std(means):.3f} across {n_repeats} repeats ===")
+
+    if observed is not None:
+        n_ge = sum(1 for m in means if m >= observed)
+        p = (1 + n_ge) / (1 + n_repeats)
+        print(f"Observed {observed:.3f} vs null: {n_ge}/{n_repeats} permutations "
+              f"at or above. Permutation p = {p:.4f}")
+    return means
